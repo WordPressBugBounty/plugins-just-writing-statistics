@@ -481,6 +481,18 @@ class Just_Writing_Statistics_Admin
             unset($parameters['jws_date_range_start'], $parameters['jws_date_range_end'], $parameters['jws_date_range_start_formatted'], $parameters['jws_date_range_end_formatted'], $parameters['jws_delete_data']);
         }
 
+        if ( ! array_key_exists( 'jws_calculate_nonce', $parameters ) ) {
+            wp_die( "Nonce not found!" );
+        }
+
+        if( ! wp_verify_nonce( $parameters['jws_calculate_nonce'], 'jws_calculate_nonce' ) && current_user_can( 'administrator' ) ) {
+            wp_die( "Invalid nonce." );
+        }
+
+        if( ! current_user_can( 'administrator' ) ) {
+            wp_die( "You don't have rights to do that." );
+        }
+
         $sql_post_total_vars = array();
 
         $sql_post_total = "SELECT COUNT(ID) AS post_total FROM %i WHERE 1";
@@ -604,12 +616,12 @@ class Just_Writing_Statistics_Admin
         ];
 
         // Date Range
-        if (isset($parameters['jws_date_range_start_formatted'])) {
+        if (isset($parameters['jws_date_range_start_formatted']) && strlen($parameters['jws_date_range_start_formatted']) == 10) {
             $start_date = date_parse($parameters['jws_date_range_start_formatted']);
             $args['date_query']['after'] = ['year' => $start_date['year'], 'month' => $start_date['month'], 'day' => $start_date['day']];
         }
 
-        if (isset($parameters['jws_date_range_end_formatted'])) {
+        if (isset($parameters['jws_date_range_end_formatted']) && strlen($parameters['jws_date_range_end_formatted']) == 10) {
             $end_date = date_parse($parameters['jws_date_range_end_formatted']);
             $args['date_query']['before'] = ['year' => $end_date['year'], 'month' => $end_date['month'], 'day' => $end_date['day']];
         }
@@ -689,7 +701,12 @@ class Just_Writing_Statistics_Admin
             if (!isset($totals[$total->post_type])) {
                 $post_type_object = get_post_type_object($total->post_type);
 
-                $totals[$total->post_type]['name'] = $post_type_object->labels->name;
+                if ($post_type_object != null) {
+                    $totals[$total->post_type]['name'] = $post_type_object->labels->name;
+                } else {
+                    $totals[$total->post_type]['name'] = '';
+                }
+
                 $totals[$total->post_type]['published']['posts'] = 0;
                 $totals[$total->post_type]['published']['word_count'] = 0;
                 $totals[$total->post_type]['scheduled']['posts'] = 0;
@@ -943,8 +960,13 @@ class Just_Writing_Statistics_Admin
                 if (!isset($jws_dataset_post_types[$jws_post->post_type])) {
                     $post_type_object = get_post_type_object($jws_post->post_type);
 
-                    $jws_dataset_post_types[$jws_post->post_type]['plural_name'] = $post_type_object->labels->name;
-                    $jws_dataset_post_types[$jws_post->post_type]['singular_name'] = $post_type_object->labels->singular_name;
+                    if ($post_type_object != null) {
+                        $jws_dataset_post_types[$jws_post->post_type]['plural_name'] = $post_type_object->labels->name;
+                        $jws_dataset_post_types[$jws_post->post_type]['singular_name'] = $post_type_object->labels->singular_name;
+                    } else {
+                        $jws_dataset_post_types[$jws_post->post_type]['plural_name'] = '';
+                        $jws_dataset_post_types[$jws_post->post_type]['singular_name'] = '';
+                    }
                 }
 
                 // Load authors array
